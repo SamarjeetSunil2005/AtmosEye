@@ -1,1 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en" class="antialiased" x-data="atmosEyeApp()" x-init="init()" x-bind:class="{ 'dark': isDarkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AtmosEye Dashboard</title>
+    <meta name="theme-color" content="#2c3e50"/>
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/2c3e50/ecf0f1?text=AtmosEye">
+    <link rel="manifest" id="manifest-link">
 
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+      tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        :root {
+            --background-light: #f0f2f5;
+            --card-background-light: #e0e5ec;
+            --text-primary-light: #111827;
+            --text-secondary-light: #6b7280;
+            --background-dark: #2c3e50;
+            --card-background-dark: #2c3e50;
+            --text-primary-dark: #ecf0f1;
+            --text-secondary-dark: #bdc3c7;
+        }
+        body {
+            background-color: var(--background-light);
+            color: var(--text-primary-light);
+            transition: all 0.3s;
+            font-family: sans-serif;
+        }
+        .dark body {
+            background-color: var(--background-dark);
+            color: var(--text-primary-dark);
+        }
+        .card {
+            background: var(--card-background-light);
+            border-radius: 1.25rem;
+            box-shadow: 6px 6px 12px #c5cad1, -6px -6px 12px #ffffff;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .dark .card {
+            background: var(--card-background-dark);
+            box-shadow: 6px 6px 12px #233140, -6px -6px 12px #354b60;
+        }
+        .card-inset {
+            background: var(--card-background-light);
+            border-radius: 0.75rem;
+            box-shadow: inset 4px 4px 8px #c5cad1, inset -4px -4px 8px #ffffff;
+        }
+        .dark .card-inset {
+            background: var(--background-dark);
+            box-shadow: inset 4px 4px 8px #233140, inset -4px -4px 8px #354b60;
+        }
+        [x-cloak] { display: none !important; }
+
+        .smoke-alert-banner {
+            background-color: #ef4444;
+            color: white;
+            animation: pulse-bg 1.5s infinite;
+        }
+        .dark .smoke-alert-banner {
+            animation: pulse-bg-dark 1.5s infinite;
+        }
+        @keyframes pulse-bg {
+            0%, 100% { background-color: #ef4444; }
+            50% { background-color: #b91c1c; }
+        }
+        @keyframes pulse-bg-dark {
+            0%, 100% { background-color: #dc2626; }
+            50% { background-color: #991b1b; }
+        }
+
+        .stabilizing-banner { background: rgba(255, 193, 7, 0.2); border-left: 4px solid #FFC107; }
+        .dark .stabilizing-banner { background: rgba(255, 193, 7, 0.1); }
+        .toggle-checkbox { transition: transform 0.2s ease-in-out; }
+        .toggle-checkbox:checked { transform: translateX(1.5rem); }
+        .segmented-control-active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .dark .segmented-control-active {
+            background-color: #60a5fa;
+            color: #1f2937;
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8">
+            <div><h1 class="text-4xl font-bold">AtmosEye</h1><p :style="{ color: isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)' }">Smart Environment Monitor</p></div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3 self-center sm:self-auto mt-4 sm:mt-0">
+
+                <div class="flex items-center space-x-2 p-3 rounded-full card text-sm">
+                    <div class="relative w-3 h-3"><span class="block w-full h-full rounded-full" :class="isOnline ? 'bg-green-500' : 'bg-red-500'"></span></div>
+                    <span x-text="isOnline ? 'Live' : 'Offline'"></span>
+                </div>
+
+                <button x-show="installPrompt" @click="installPWA()" class="p-3 rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors" aria-label="Install App">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                </button>
+
+                <template x-for="button in headerButtons" :key="button.label">
+                    <button @click="openModal(button.modal)" class="p-3 rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors" :aria-label="button.label">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-html="button.svg"></svg>
+                    </button>
+                </template>
+
+                <button @click="toggleDarkMode()" class="p-3 rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors" aria-label="Toggle Theme">
+                    <span x-show="!isDarkMode"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg></span>
+                    <span x-show="isDarkMode" x-cloak><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg></span>
+                </button>
+            </div>
+        </header>
+        <main>
+
+            <div x-show="alert.active" x-transition class="smoke-alert-banner rounded-xl p-4 mb-6 flex items-center justify-center space-x-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span class="font-bold text-2xl" x-text="alert.state === 'SMOKE' ? 'SMOKE ALERT' : (alert.state === 'WARNING' ? 'AIR QUALITY WARNING' : 'ALERT')"></span>
+            </div>
+
+            <div x-show="logManager.storage.percent_used > 90" x-transition class="card bg-red-100 dark:bg-red-900/50 border-l-4 border-red-500 p-4 mb-6 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span class="font-semibold text-red-800 dark:text-red-300">Low storage warning! Disk is <span x-text="logManager.storage.percent_used"></span>% full.</span>
+                </div>
+                <button @click="openModal('log_management')" class="px-3 py-1 text-sm font-semibold rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">Manage Logs</button>
+            </div>
+
+            <div x-show="isOnline && health.sensor_status !== 'OK' && !alert.active" x-transition class="card stabilizing-banner p-4 mb-6 flex items-center space-x-3">
+                <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span class="font-semibold text-yellow-800 dark:text-yellow-300" x-text="health.sensor_status || 'Sensor stabilizing...'"></span>
+            </div>
+
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <div class="card p-4 flex flex-col justify-between md:col-span-2">
+                    <h3 class="font-semibold text-lg">Indoor Air Quality</h3>
+                    <div class="text-center my-auto py-6">
+                        <p class="font-bold text-7xl" x-text="live.iaq ? live.iaq.toFixed(0) : '--'"></p>
+                        <p class="text-2xl font-semibold" :class="getStatusTextColor('iaq', live.iaq)" x-text="getStatus('iaq', live.iaq)"></p>
+                    </div>
+                </div>
+
+                <div class="card p-4 flex flex-col justify-between">
+                    <h3 class="font-semibold text-lg">Air Quality Index (AQI)</h3>
+                    <div class="text-center my-auto py-6">
+                        <p class="font-bold text-7xl" x-text="live.aqi ? live.aqi.toFixed(0) : '--'"></p>
+                        <p class="text-2xl font-semibold" :class="getStatusTextColor('aqi', live.aqi)" x-text="getStatus('aqi', live.aqi)"></p>
+                    </div>
+                </div>
+
+                <div class="card p-4 flex flex-col justify-between">
+                    <h3 class="font-semibold text-lg">Temperature</h3>
+                    <div class="text-center my-auto py-6">
+                        <p class="font-bold text-7xl" x-text="live.temperature ? formatValue('temperature', 1).split(' ')[0] : '--'"></p>
+                        <p class="text-2xl font-semibold" :class="getStatusTextColor('temperature', live.temperature)">
+                            <span x-text="getStatus('temperature', live.temperature)"></span> <span class="text-lg" x-text="live.temperature ? getUnit('temperature') : ''"></span>
+                        </p>
+                    </div>
+                </div>
+
+
+                <template x-for="sensor in sensorConfig" :key="sensor.id">
+                    <div class="card p-4 flex flex-col justify-between">
+                        <h3 class="font-semibold" x-text="sensor.title"></h3>
+                        <div class="text-center my-auto">
+                            <p class="font-bold text-4xl" x-text="formatValue(sensor.id, sensor.precision)"></p>
+                            <p class="text-lg font-semibold" :class="getStatusTextColor(sensor.id, live[sensor.id])" x-text="getStatus(sensor.id, live[sensor.id])"></p>
+                        </div>
+                    </div>
+                </template>
+
+
+                <div class="card p-4 md:col-span-2">
+                    <h3 class="font-semibold mb-2">Particulate Matter (µg/m³)</h3>
+                    <div class="grid grid-cols-3 text-center divide-x" :class="isDarkMode ? 'divide-slate-600' : 'divide-slate-300'">
+                        <div class="px-2">
+                            <p class="text-xs">PM1.0</p>
+                            <p class="font-bold text-3xl" x-text="live.pm1 ? live.pm1.toFixed(0) : '--'"></p>
+                        </div>
+                        <div class="px-2">
+                            <p class="text-xs">PM2.5</p>
+                            <p class="font-bold text-3xl" x-text="live.pm25 ? live.pm25.toFixed(0) : '--'"></p>
+                        </div>
+                        <div class="px-2">
+                            <p class="text-xs">PM10</p>
+                            <p class="font-bold text-3xl" x-text="live.pm10 ? live.pm10.toFixed(0) : '--'"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="card mt-6 p-6">
+                <h2 class="text-xl font-bold mb-4">AtmosVision</h2>
+                <div x-show="!predictions || !predictions.status || predictions.status !== 'OK'" class="text-center py-4" x-text="(predictions && predictions.status) || 'Loading predictions...'"></div>
+                <div x-show="predictions && predictions.status === 'OK'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-center">
+                    <template x-for="param in predictionConfig" :key="param.id">
+                        <div class="card-inset p-4">
+                            <h4 class="font-semibold" x-text="param.title"></h4>
+                            <p class="text-3xl font-bold" x-text="predictions.trends && predictions.trends[param.id] ? predictions.trends[param.id].summary : '--'"></p>
+                            <p class="text-sm" :style="{ color: isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)' }" x-text="predictions.trends && predictions.trends[param.id] ? 'Confidence: ' + predictions.trends[param.id].confidence : ''"></p>
+                            <p class="text-xs mt-1 h-8" :style="{ color: isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)' }" x-text="predictions.trends && predictions.trends[param.id] ? predictions.trends[param.id].suggestion : ''"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+
+            <div class="card mt-6 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">AtmosInsights</h2>
+                    <button @click="fetchInsight()" class="p-2 rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-700/50" :disabled="insight.loading">
+                        <svg class="w-5 h-5" :class="{'animate-spin': insight.loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0114.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0020.49 15"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="card-inset p-4 min-h-[8rem] flex items-center justify-center">
+                    <p x-show="!insight.loading" class="text-center" x-text="insight.text"></p>
+                    <div x-show="insight.loading" x-cloak class="flex items-center space-x-2">
+                        <span class="text-2xl">💬</span>
+                        <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0s;"></div>
+                        <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div>
+                        <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
+                    </div>
+                </div>
+                <p class="text-xs text-right mt-2" :style="{ color: isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)' }" x-show="insight.timestamp" x-text="'Updated at ' + new Date(insight.timestamp).toLocaleTimeString()"></p>
+            </div>
+        </main>
+    </div>
+
+
+    <div x-show="activeModal" @click.self="closeModal()" x-cloak class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div class="card w-full max-w-lg flex flex-col" @click.stop x-show="activeModal" style="max-height: calc(100vh - 4rem);" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+            <template x-if="activeModal">
+                <div class="p-6 relative flex flex-col overflow-y-auto">
+
+                    <button @click="closeModal()" class="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-300/50 dark:hover:bg-slate-600/50 text-2xl leading-none z-10">&times;</button>
+
+
+                    <div x-show="activeModal === 'health'">
+                        <h2 class="text-2xl font-bold mb-4">System Health</h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between"><span>Status:</span> <span class="font-semibold" x-text="health.status || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>Sensor Status:</span> <span class="font-semibold" x-text="health.sensor_status || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>CPU Usage:</span> <span class="font-semibold" x-text="health.cpu_usage || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>Memory Usage:</span> <span class="font-semibold" x-text="health.memory_usage || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>Uptime:</span> <span class="font-semibold" x-text="health.uptime || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>Model Version:</span> <span class="font-semibold" x-text="health.model_version || 'Loading...'"></span></div>
+                            <div class="flex justify-between"><span>Last Auto-Cleanup:</span> <span class="font-semibold" x-text="health.last_auto_cleanup || 'Never'"></span></div>
+                        </div>
+                    </div>
+
+
+                    <div x-show="activeModal === 'settings'">
+                        <h2 class="text-2xl font-bold mb-4">Settings</h2>
+                        <div class="space-y-4">
+
+                            <div class="flex items-center justify-between p-2">
+                                <label for="temp-unit" class="font-semibold">Use Fahrenheit (°F)</label>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="temp-unit" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" :class="isDarkMode ? 'border-gray-500' : 'border-gray-300'" x-model="settings.useFahrenheit"/>
+                                    <label for="temp-unit" class="block overflow-hidden h-6 rounded-full cursor-pointer" :class="settings.useFahrenheit ? 'bg-green-400' : (isDarkMode ? 'bg-gray-700' : 'bg-gray-300')"></label>
+                                </div>
+                            </div>
+
+
+                            <div class="flex items-center justify-between p-2">
+                                <label for="smoke-detection" class="font-semibold">Enable Smoke Detection</label>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="smoke-detection" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" :class="isDarkMode ? 'border-gray-500' : 'border-gray-300'" x-model="settings.enableSmokeDetection"/>
+                                    <label for="smoke-detection" class="block overflow-hidden h-6 rounded-full cursor-pointer" :class="settings.enableSmokeDetection ? 'bg-green-400' : (isDarkMode ? 'bg-gray-700' : 'bg-gray-300')"></label>
+                                </div>
+                            </div>
+
+
+                            <div class="flex items-center justify-between p-2" :class="!settings.enableSmokeDetection ? 'opacity-50 pointer-events-none' : ''">
+                                <label for="emergency-alert" class="font-semibold">Enable Buzzer Alert</label>
+                                <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                    <input type="checkbox" id="emergency-alert" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" :class="isDarkMode ? 'border-gray-500' : 'border-gray-300'" x-model="settings.emergencyAlert" :disabled="!settings.enableSmokeDetection"/>
+                                    <label for="emergency-alert" class="block overflow-hidden h-6 rounded-full cursor-pointer" :class="settings.emergencyAlert ? 'bg-green-400' : (isDarkMode ? 'bg-gray-700' : 'bg-gray-300')"></label>
+                                </div>
+                            </div>
+
+
+                            <div class="p-2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label for="alert-threshold" class="font-semibold">IAQ Warning Threshold</label>
+                                    <span class="font-bold card-inset py-1 px-3 rounded-lg text-sm" x-text="settings.alertThreshold"></span>
+                                </div>
+                                <div class="relative">
+                                    <input type="range" id="alert-threshold" x-model.number="settings.alertThreshold" min="50" max="350" step="25" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-red-500 dark:accent-red-400">
+                                    <div class="flex justify-between text-xs px-1 pt-1">
+                                        <span>50</span>
+                                        <span>150</span>
+                                        <span>250</span>
+                                        <span>350</span>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="flex items-center justify-between p-2">
+                                <label for="insight-tone" class="font-semibold">Insight Tone</label>
+                                <select id="insight-tone" x-model="settings.insightTone" class="p-2 rounded card-inset dark:text-white dark:bg-gray-700">
+                                    <option value="professional">Professional</option>
+                                    <option value="scientific">Scientific</option>
+                                    <option value="friendly">Friendly</option>
+                                </select>
+                            </div>
+
+
+                            <div class="p-2">
+                                <label class="font-semibold">Insight Min. Duration</label>
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <input type="number" min="0" max="23" x-model.number="settings.insightMinDurationHours" @input="settings.insightMinDurationHours = parseInt($event.target.value) || 0" class="w-16 p-2 text-center rounded card-inset dark:text-white dark:bg-gray-700" placeholder="H">
+                                    <span class="font-semibold">:</span>
+                                    <input type="number" min="0" max="59" step="5" x-model.number="settings.insightMinDurationMinutes" @input="settings.insightMinDurationMinutes = parseInt($event.target.value) || 0" class="w-16 p-2 text-center rounded card-inset dark:text-white dark:bg-gray-700" placeholder="M">
+                                    <span class="text-sm">(Hours : Minutes)</span>
+                                </div>
+                            </div>
+
+
+                            <div class="grid grid-cols-2 gap-4 pt-2">
+                                <div class="flex items-center justify-between p-2">
+                                    <span class="font-semibold">Test Buzzer</span>
+                                    <button @click="testBuzzer($event)" class="px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">
+                                        Run Test
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-2">
+                                    <span class="font-semibold">Test Smoke Alert</span>
+                                    <button @click="testAlert($event)" x-text="alert.active ? 'Stop Test' : 'Run Test'" class="px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">
+                                        Run Test
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div x-show="activeModal === 'log_management'">
+                        <h2 class="text-2xl font-bold mb-4">Log File Management</h2>
+
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm font-semibold mb-1">
+                                <span>Storage Usage</span>
+                                <span x-text="`${logManager.storage.used_gb || 0} GB / ${logManager.storage.total_gb || 0} GB`"></span>
+                            </div>
+                            <div class="w-full card-inset rounded-full h-4 p-1">
+                                <div class="bg-blue-500 h-full rounded-full" :style="`width: ${logManager.storage.percent_used || 0}%`"></div>
+                            </div>
+                        </div>
+
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                            <select x-model="logManager.selectedYear" @change="logManager.selectedMonth = logManager.structure[logManager.selectedYear] ? Object.keys(logManager.structure[logManager.selectedYear])[0] : null; fetchLogFiles()" class="p-2 rounded card-inset dark:text-white dark:bg-gray-700">
+                                <template x-for="year in Object.keys(logManager.structure)" :key="year"><option :value="year" x-text="year"></option></template>
+                            </select>
+                            <select x-model="logManager.selectedMonth" @change="fetchLogFiles()" class="p-2 rounded card-inset dark:text-white dark:bg-gray-700">
+                                <template x-for="month in (logManager.structure[logManager.selectedYear] ? Object.keys(logManager.structure[logManager.selectedYear]) : [])" :key="month"><option :value="month" x-text="new Date(logManager.selectedYear, month-1).toLocaleString('default', { month: 'long' })"></option></template>
+                            </select>
+                            <input type="text" x-model="logManager.filter" placeholder="Filter files..." class="p-2 rounded card-inset dark:text-white dark:bg-gray-700">
+                        </div>
+
+
+                        <div class="space-y-2 max-h-64 overflow-y-auto card-inset p-2" x-show="!logManager.loading">
+                            <template x-for="file in logManager.filteredFiles()" :key="file.name">
+                                <div class="p-2 rounded-lg flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-700/50 text-sm">
+                                    <div class="flex items-center space-x-2 flex-grow min-w-0">
+                                        <input type="checkbox" :value="`${logManager.selectedYear}/${logManager.selectedMonth}/${file.name}`" x-model="logManager.selectedFiles" class="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 flex-shrink-0">
+                                        <span class="truncate" x-text="file.name"></span>
+                                        <span class="px-2 py-0.5 text-xs rounded-full flex-shrink-0" :class="{'bg-green-200 text-green-800': file.size_kb < 5000, 'bg-orange-200 text-orange-800': file.size_kb >= 5000 && file.size_kb < 20000, 'bg-red-200 text-red-800': file.size_kb >= 20000}" x-text="formatBytes(file.size_kb * 1024)"></span>
+                                    </div>
+                                    <div class="flex items-center space-x-1 flex-shrink-0">
+                                        <button @click="viewLogFile(`${logManager.selectedYear}/${logManager.selectedMonth}/${file.name}`)" class="p-1 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.042 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg></button>
+                                        <button @click="downloadLogs([`${logManager.selectedYear}/${logManager.selectedMonth}/${file.name}`])" class="p-1 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="logManager.filteredFiles().length === 0" class="text-center text-gray-500 py-4">No logs found for this period.</div>
+                        </div>
+                        <div x-show="logManager.loading" class="text-center py-8">Loading logs...</div>
+
+
+                        <div class="mt-4 flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+                            <button @click="logManager.selectedFiles = logManager.filteredFiles().map(f => `${logManager.selectedYear}/${logManager.selectedMonth}/${f.name}`)" class="px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">
+                                Select All
+                            </button>
+                            <div class="flex space-x-2">
+                                <button @click="downloadLogs(logManager.selectedFiles)" :disabled="logManager.selectedFiles.length === 0" class="px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed">Download Selected</button>
+                                <button @click="logManager.confirmDelete = true" :disabled="logManager.selectedFiles.length === 0" class="px-4 py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed">Delete Selected</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 border-t pt-4 dark:border-gray-600">
+                            <h3 class="font-semibold mb-2">Auto-Maintenance</h3>
+                            <div class="flex items-center justify-between p-2">
+                                <label for="log-retention" class="text-sm">Delete logs older than:</label>
+                                <div class="flex items-center space-x-2">
+                                    <select id="log-retention" x-model="settings.logRetentionPeriod" class="p-2 text-sm rounded card-inset dark:text-white dark:bg-gray-700">
+                                        <option value="30d">30 Days</option>
+                                        <option value="90d">90 Days</option>
+                                        <option value="365d">1 Year</option>
+                                        <option value="forever">Forever</option>
+                                    </select>
+                                    <button @click="autoCleanLogs()" class="px-3 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">
+                                        Apply
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div x-show="logManager.confirmDelete" @click.away="logManager.confirmDelete = false" class="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 rounded-xl">
+                            <p class="font-bold text-lg">Are you sure?</p>
+                            <p class="text-sm mb-4" x-text="`This will permanently delete ${logManager.selectedFiles.length} log file(s).`"></p>
+                            <div class="flex space-x-4">
+                                <button @click="logManager.confirmDelete = false" class="px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                                <button @click="deleteLogFiles()" class="px-4 py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700">Confirm Delete</button>
+                            </div>
+                        </div>
+
+
+                        <div x-show="logManager.viewingFile.path" @click.away="logManager.viewingFile.path = null" class="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 rounded-xl overflow-hidden">
+                           <div class="card w-full h-full p-4 flex flex-col">
+                                <h3 class="font-bold text-lg mb-2 truncate" x-text="`Preview: ${logManager.viewingFile.path}`"></h3>
+                                <div class="overflow-auto flex-grow">
+                                    <table class="w-full text-left text-xs">
+                                        <thead class="sticky top-0 bg-slate-200 dark:bg-slate-700">
+                                            <tr><template x-for="h in logManager.viewingFile.headers"><th class='p-1' x-text="h"></th></template></tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="row in logManager.viewingFile.rows">
+                                                <tr><template x-for="cell in row"><td class='p-1' x-text="cell"></td></template></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button @click="logManager.viewingFile.path = null" class="mt-2 px-4 py-2 rounded-lg font-semibold w-full card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">Close</button>
+                           </div>
+                        </div>
+                    </div>
+
+
+                    <div x-show="activeModal === 'wifi_management'">
+                        <h2 class="text-2xl font-bold mb-4">WiFi Management</h2>
+
+                        <div class="p-2 card-inset mb-4 border-l-4 border-blue-500">
+                            <h3 class="font-semibold text-sm mb-1">Internet Connection (wlan0)</h3>
+                            <div class="flex justify-between items-center text-xs">
+                                <div><strong>Status:</strong> <span x-text="wifi.status_wlan0.state"></span></div>
+                                <div x-show="wifi.status_wlan0.ssid"><strong>SSID:</strong> <span x-text="wifi.status_wlan0.ssid"></span></div>
+                                <div x-show="wifi.status_wlan0.ip_address"><strong>IP:</strong> <span x-text="wifi.status_wlan0.ip_address"></span></div>
+                            </div>
+                        </div>
+
+
+                        <div class="flex items-center justify-between p-2 mb-4">
+                            <label class="font-semibold">Device Mode (wlan1)</label>
+                            <div class="card-inset p-1 rounded-full flex space-x-1 text-sm font-semibold">
+                                <button @click="setWifiMode('ap')" :class="{'segmented-control-active': wifi.status_wlan1.mode === 'ap'}" class="px-4 py-1 rounded-full transition-colors">AP Mode</button>
+                                <button @click="setWifiMode('client')" :class="{'segmented-control-active': wifi.status_wlan1.mode === 'client'}" class="px-4 py-1 rounded-full transition-colors">Client Mode</button>
+                            </div>
+                        </div>
+
+
+                        <div x-show="wifi.status_wlan1.mode === 'client'">
+
+                            <div class="flex border-b dark:border-gray-600 mb-4">
+                                <button @click="wifi.activeTab = 'networks'" :class="{ 'border-indigo-500 text-indigo-600 dark:text-indigo-400': wifi.activeTab === 'networks', 'border-transparent': wifi.activeTab !== 'networks' }" class="py-2 px-4 border-b-2 font-semibold">Available</button>
+                                <button @click="wifi.activeTab = 'add'" :class="{ 'border-indigo-500 text-indigo-600 dark:text-indigo-400': wifi.activeTab === 'add', 'border-transparent': wifi.activeTab !== 'add' }" class="py-2 px-4 border-b-2 font-semibold">Add</button>
+                            </div>
+
+
+                            <div x-show="wifi.activeTab === 'networks'">
+                                <div class="p-2 card-inset mb-4">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <div><strong>Status (wlan1):</strong> <span x-text="wifi.status_wlan1.state"></span></div>
+                                        <div x-show="wifi.status_wlan1.ssid"><strong>SSID:</strong> <span x-text="wifi.status_wlan1.ssid"></span></div>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm mt-1">
+                                        <div x-show="wifi.status_wlan1.ip_address"><strong>IP:</strong> <span x-text="wifi.status_wlan1.ip_address"></span></div>
+                                        <div x-show="wifi.status_wlan1.signal_percent > 0"><strong>Signal:</strong> <span x-text="`${wifi.status_wlan1.signal_percent}%`"></span></div>
+                                    </div>
+                                </div>
+                                <button @click="scanWifiNetworks()" :disabled="wifi.loading" class="w-full mb-3 px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50 disabled:opacity-50 flex items-center justify-center space-x-2">
+                                    <svg class="w-5 h-5" :class="{'animate-spin': wifi.loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path d="M3.51 9a9 9 0 0114.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0020.49 15"></path>
+                                    </svg>
+                                    <span x-text="wifi.loading ? 'Scanning...' : 'Scan for Networks'"></span>
+                                </button>
+                                <div class="space-y-2 max-h-64 overflow-y-auto card-inset p-2">
+                                    <template x-for="net in wifi.networks" :key="net.ssid">
+                                        <div class="p-2 rounded-lg flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-700/50">
+                                            <div class="flex items-center space-x-3">
+                                                <span x-html="getSignalIcon(net.signal)"></span>
+                                                <span class="font-semibold" x-text="net.ssid"></span>
+                                                <svg x-show="net.security !== '' && net.security !== 'Open'" class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg>
+                                            </div>
+                                            <div>
+                                                <span x-show="wifi.status_wlan1.ssid === net.ssid" class="text-sm font-bold text-green-600">Connected</span>
+                                                <button x-show="wifi.status_wlan1.ssid !== net.ssid" @click="wifi.connectingTo = net.ssid" class="px-3 py-1 text-sm font-semibold rounded-full card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">Connect</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                     <div x-show="wifi.networks.length === 0 && !wifi.loading" class="text-center text-gray-500 py-4">No networks found.</div>
+                                </div>
+                                <button x-show="wifi.status_wlan1.state === 'connected'" @click="disconnectWifi()" class="w-full mt-4 px-4 py-2 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700">Disconnect</button>
+                            </div>
+
+
+                            <div x-show="wifi.activeTab === 'add'">
+                                <div class="space-y-4 p-2">
+                                    <div>
+                                        <label for="ssid-add" class="font-semibold text-sm">Network Name (SSID)</label>
+                                        <input type="text" id="ssid-add" x-model="wifi.newNetwork.ssid" class="w-full mt-1 p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="e.g., MyHomeWiFi">
+                                    </div>
+                                    <div>
+                                        <label for="password-add" class="font-semibold text-sm">Password</label>
+                                        <div class="relative mt-1">
+                                            <input :type="wifi.showPassword ? 'text' : 'password'" id="password-add" x-model="wifi.newNetwork.password" class="w-full p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="Network password (leave empty for open)">
+                                            <button @click="wifi.showPassword = !wifi.showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 dark:text-gray-400">
+                                                <svg x-show="!wifi.showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.042 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                                <svg x-show="wifi.showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" style="display: none;"><path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C16.268 4.943 10.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c3.274 5.057 9.042 7 9.542 7 .847 0 1.68-.127 2.454-.303z" /></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button @click="connectToNewWifi()" class="w-full mt-4 px-4 py-2 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700">Connect to Network</button>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div x-show="wifi.status_wlan1.mode === 'ap'">
+                            <div class="space-y-4 p-2">
+                                <div>
+                                    <label for="ap-ssid" class="font-semibold text-sm">Access Point SSID</label>
+                                    <input type="text" id="ap-ssid" x-model="wifi.apSettings.ssid" class="w-full mt-1 p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="e.g., AtmosEye-AP">
+                                </div>
+                                <div>
+                                    <label for="ap-password" class="font-semibold text-sm">AP Password (min 8 chars)</label>
+                                    <div class="relative mt-1">
+                                        <input :type="wifi.showPassword ? 'text' : 'password'" id="ap-password" x-model="wifi.apSettings.password" class="w-full p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="Leave empty for open network">
+                                        <button @click="wifi.showPassword = !wifi.showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 dark:text-gray-400">
+                                            <svg x-show="!wifi.showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.042 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                            <svg x-show="wifi.showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" style="display: none;"><path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C16.268 4.943 10.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c3.274 5.057 9.042 7 9.542 7 .847 0 1.68-.127 2.454-.303z" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button @click="configureAP()" class="w-full mt-4 px-4 py-2 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700">Apply AP Settings</button>
+                            </div>
+                        </div>
+
+
+                        <div x-show="wifi.switchingMode" class="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 rounded-xl">
+                            <svg class="w-12 h-12 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <p class="font-bold text-lg mt-4" x-text="`Switching to ${wifi.switchingToMode} Mode...`"></p>
+                        </div>
+
+
+                        <div x-show="wifi.connectingTo" @click.away="wifi.connectingTo = null" class="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 rounded-xl">
+                            <h3 class="font-bold text-lg mb-2" x-text="`Connect to ${wifi.connectingTo}`"></h3>
+                            <input type="password" x-model="wifi.password" class="w-full p-2 text-center rounded card-inset dark:text-white dark:bg-gray-700" placeholder="Enter WiFi Password">
+                            <div class="flex space-x-4 mt-4">
+                                <button @click="wifi.connectingTo = null; wifi.password = ''" class="px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                                <button @click="connectToWifi()" class="px-4 py-2 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700">Connect</button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div x-show="activeModal === 'notifications'">
+                        <h2 class="text-2xl font-bold mb-4">Notifications & Alerts</h2>
+
+
+                        <div class="flex border-b dark:border-gray-600 mb-4">
+                            <button @click="telegram.activeTab = 'settings'" :class="{ 'border-indigo-500 text-indigo-600 dark:text-indigo-400': telegram.activeTab === 'settings', 'border-transparent': telegram.activeTab !== 'settings' }" class="py-2 px-4 border-b-2 font-semibold">Settings</button>
+                            <button @click="fetchTelegramHistory(); telegram.activeTab = 'history'" :class="{ 'border-indigo-500 text-indigo-600 dark:text-indigo-400': telegram.activeTab === 'history', 'border-transparent': telegram.activeTab !== 'history' }" class="py-2 px-4 border-b-2 font-semibold">History</button>
+                        </div>
+
+
+                        <div x-show="telegram.activeTab === 'settings'">
+                            <div class="space-y-4 p-2">
+                                <div>
+                                    <label for="bot-token" class="font-semibold text-sm">Telegram Bot Token</label>
+                                    <input type="password" id="bot-token" x-model="telegram.token" class="w-full mt-1 p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="Your bot token">
+                                </div>
+                                <div>
+                                    <label for="chat-id" class="font-semibold text-sm">Default Chat ID</label>
+                                    <input type="text" id="chat-id" x-model="telegram.chatId" class="w-full mt-1 p-2 rounded card-inset dark:text-white dark:bg-gray-700" placeholder="Your user or group Chat ID for alerts">
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button @click="saveTelegramSettings()" class="w-full px-4 py-2 rounded-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700">Save</button>
+                                    <button @click="testTelegramMessage()" class="w-full px-4 py-2 rounded-lg font-semibold text-sm card hover:bg-slate-300/50 dark:hover:bg-slate-700/50">Send Test</button>
+                                </div>
+                                <p class="text-xs text-center pt-2" :style="{ color: isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)' }">
+                                    Start a chat with your bot and send /help to see available commands.
+                                </p>
+                            </div>
+                        </div>
+
+
+                        <div x-show="telegram.activeTab === 'history'">
+                            <div class="space-y-2 max-h-72 overflow-y-auto card-inset p-2">
+                                <template x-for="msg in telegram.history" :key="msg.timestamp">
+                                    <div class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700/50">
+                                        <div class="flex justify-between items-center text-xs font-semibold mb-1">
+                                            <span :class="{
+                                                'text-red-500': msg.type === 'alert',
+                                                'text-yellow-500': msg.type === 'warning',
+                                                'text-green-500': msg.type === 'recovery',
+                                                'text-blue-500': msg.type === 'test',
+                                                'text-purple-500': msg.type === 'response',
+                                                'text-gray-500': !['alert','warning','recovery','test','response'].includes(msg.type)
+                                            }" x-text="msg.type ? msg.type.toUpperCase() : 'INFO'"></span>
+                                            <span x-text="new Date(msg.timestamp * 1000).toLocaleString()"></span>
+                                        </div>
+                                        <p class="text-sm whitespace-pre-wrap" x-text="msg.message"></p>
+                                    </div>
+                                </template>
+                                <div x-show="telegram.history.length === 0" class="text-center text-gray-500 py-4">No messages sent recently.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+
+    <div x-show="notification.show" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2" x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-lg text-white max-w-sm z-[999]" :class="notification.type === 'success' ? 'bg-green-500' : (notification.type === 'warning' ? 'bg-yellow-500' : 'bg-red-500')" x-text="notification.message"></div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('atmosEyeApp', () => ({
+        isDarkMode: false,
+        live: {},
+        health: {},
+        predictions: { trends: {} },
+        activeModal: null,
+        isOnline: true,
+        installPrompt: null,
+        notification: { show: false, message: '', type: 'success', timeout: null },
+        alert: { active: false, state: 'SAFE' },
+        settings: {
+            useFahrenheit: false,
+            enableSmokeDetection: true,
+            emergencyAlert: false,
+            alertThreshold: 150,
+            insightTone: 'professional',
+            insightMinDurationHours: 0,
+            insightMinDurationMinutes: 5,
+            logRetentionPeriod: '90d'
+        },
+        insight: { text: 'Click refresh to generate an insight.', loading: false, timestamp: null },
+
+        wifi: {
+            status_wlan1: { state: 'disconnected', ssid: null, ip_address: null, signal_percent: 0, mode: 'unknown' },
+            status_wlan0: { state: 'disconnected', ssid: null, ip_address: null },
+            networks: [],
+            loading: false,
+            activeTab: 'networks',
+            connectingTo: null,
+            password: '',
+            newNetwork: { ssid: '', password: '' },
+            apSettings: { ssid: '', password: ''},
+            showPassword: false,
+            switchingMode: false,
+            switchingToMode: null
+        },
+
+        telegram: {
+            token: '',
+            chatId: '',
+            activeTab: 'settings',
+            history: []
+        },
+
+        logManager: {
+            structure: {}, files: [], selectedYear: null, selectedMonth: null, selectedFiles: [],
+            filter: '', loading: true, confirmDelete: false, storage: {},
+            viewingFile: { path: null, headers:[], rows: [] },
+            filteredFiles() {
+                if (!this.files) return [];
+                if (this.filter === '') return this.files;
+                return this.files.filter(file => file.name.toLowerCase().includes(this.filter.toLowerCase()));
+            }
+        },
+
+        init() {
+            this.setupPWA();
+
+            this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+            this.settings.useFahrenheit = localStorage.getItem('useFahrenheit') === 'true';
+
+            this.settings.enableSmokeDetection = localStorage.getItem('enableSmokeDetection') !== 'false';
+            this.settings.emergencyAlert = localStorage.getItem('emergencyAlert') === 'true';
+            this.settings.alertThreshold = parseInt(localStorage.getItem('alertThreshold')) || 150;
+            this.settings.insightTone = localStorage.getItem('insightTone') || 'professional';
+
+            const savedDuration = parseInt(localStorage.getItem('insightMinDurationMinutesTotal')) || 5;
+            this.settings.insightMinDurationHours = Math.floor(savedDuration / 60);
+            this.settings.insightMinDurationMinutes = savedDuration % 60;
+
+            this.settings.logRetentionPeriod = localStorage.getItem('logRetentionPeriod') || '90d';
+
+            this.$watch('isDarkMode', val => { localStorage.setItem('darkMode', val); document.documentElement.classList.toggle('dark', val); });
+            this.$watch('settings', async (val, oldVal) => {
+
+                localStorage.setItem('useFahrenheit', val.useFahrenheit);
+                localStorage.setItem('enableSmokeDetection', val.enableSmokeDetection);
+                localStorage.setItem('emergencyAlert', val.emergencyAlert);
+                localStorage.setItem('alertThreshold', val.alertThreshold);
+                localStorage.setItem('insightTone', val.insightTone);
+                localStorage.setItem('logRetentionPeriod', val.logRetentionPeriod);
+
+                const totalMinutes = (parseInt(val.insightMinDurationHours || 0) * 60) + parseInt(val.insightMinDurationMinutes || 0);
+                localStorage.setItem('insightMinDurationMinutesTotal', totalMinutes);
+
+                 if (!val.enableSmokeDetection) {
+                     val.emergencyAlert = false;
+                     localStorage.setItem('emergencyAlert', false);
+                 }
+
+                const updatedTotalMinutes = (parseInt(val.insightMinDurationHours || 0) * 60) + parseInt(val.insightMinDurationMinutes || 0);
+                const oldTotalMinutes = (parseInt(oldVal?.insightMinDurationHours || 0) * 60) + parseInt(oldVal?.insightMinDurationMinutes || 0);
+
+                const oldSettingsComparable = { ...(oldVal || {}), insightMinDurationMinutesTotal: oldTotalMinutes };
+                delete oldSettingsComparable.insightMinDurationHours;
+                delete oldSettingsComparable.insightMinDurationMinutes;
+
+                const newSettingsComparable = { ...val, insightMinDurationMinutesTotal: updatedTotalMinutes };
+                delete newSettingsComparable.insightMinDurationHours;
+                delete newSettingsComparable.insightMinDurationMinutes;
+
+
+                if(JSON.stringify(newSettingsComparable) !== JSON.stringify(oldSettingsComparable)) {
+                    console.log("Settings changed, sending to backend:", newSettingsComparable);
+                    await this.fetchApi('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newSettingsComparable)
+                    });
+                }
+
+                if ((val.insightTone !== oldVal?.insightTone) || (updatedTotalMinutes !== oldTotalMinutes)) {
+                    this.fetchInsight();
+                }
+
+            }, { deep: true });
+
+
+            this.fetchInitialData();
+            this.fetchInsight();
+            this.fetchWifiStatus();
+            this.fetchStorageStatus();
+            this.fetchTelegramSettings();
+
+
+            setInterval(() => this.liveUpdate(), 2000);
+            setInterval(() => this.fetchHealth(), 30000);
+            setInterval(() => this.fetchPredictions(), 60000);
+            setInterval(() => this.fetchInsight(), 15 * 60 * 1000);
+            setInterval(() => this.fetchStorageStatus(), 5 * 60 * 1000);
+            setInterval(() => this.fetchWifiStatus(), 10000);
+        },
+
+        setupPWA() {
+            const manifest = {
+                "name": "AtmosEye Dashboard",
+                "short_name": "AtmosEye",
+                "start_url": ".",
+                "display": "standalone",
+                "background_color": "#2c3e50",
+                "theme_color": "#2c3e50",
+                "icons": [{"src": "https://placehold.co/192x192/2c3e50/ecf0f1?text=AtmosEye", "sizes": "192x192", "type": "image/png"}]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            document.querySelector('#manifest-link').setAttribute('href', manifestURL);
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                this.installPrompt = e;
+            });
+        },
+        async installPWA() {
+            if (!this.installPrompt) return;
+            this.installPrompt.prompt();
+            const { outcome } = await this.installPrompt.userChoice;
+            if (outcome === 'accepted') this.installPrompt = null;
+        },
+
+        toggleDarkMode() { this.isDarkMode = !this.isDarkMode; },
+
+        sensorConfig: [
+            { id: 'humidity', title: 'Humidity', unit: '%', precision: 0 },
+            { id: 'pressure', title: 'Pressure', unit: 'hPa', precision: 1 },
+            { id: 'co2_equivalent', title: 'CO₂ Equiv.', unit: 'ppm', precision: 0 },
+            { id: 'voc_index', title: 'VOC Index', unit: '', precision: 0}
+        ],
+        predictionConfig: [
+            { id: 'iaq', title: 'IAQ Trend' },
+            { id: 'aqi', title: 'AQI Trend' },
+            { id: 'temperature', title: 'Temp Trend' },
+            { id: 'voc_index', title: 'VOC Index Trend' },
+            { id: 'co2_equivalent', title: 'CO₂ Trend' }
+        ],
+        headerButtons: [
+            { modal: 'health', label: 'System Health', svg: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>` },
+            { modal: 'settings', label: 'Settings', svg: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />` },
+            { modal: 'log_management', label: 'Log Management', svg: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />` },
+            { modal: 'wifi_management', label: 'WiFi Management', svg: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.136 11.886a9.75 9.75 0 0113.728 0M2 8.732a14.25 14.25 0 0120 0" /><path fill="currentColor" d="M12 18.75a.75.75 0 100-1.5.75.75 0 000 1.5z" />` },
+            { modal: 'notifications', label: 'Notifications & Alerts', svg: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />` }
+        ],
+
+        async fetchInitialData() {
+            const [liveData, healthData, predictionData] = await Promise.all([
+                this.fetchApi('/api/live'),
+                this.fetchApi('/api/health'),
+                this.fetchApi('/api/predict')
+            ]);
+            this.live = liveData || {};
+            this.health = healthData || {};
+            this.predictions = predictionData || { trends: {} };
+            this.alert.active = liveData?.alert_active || false;
+            this.alert.state = liveData?.state || 'SAFE';
+        },
+
+        async liveUpdate() {
+            const data = await this.fetchApi('/api/live');
+            if (data && !data.error) {
+                this.live = data;
+                 this.alert.active = data.alert_active || false;
+                 this.alert.state = data.state || 'SAFE';
+            }
+        },
+        async fetchHealth() { this.health = await this.fetchApi('/api/health') || {}; },
+        async fetchPredictions() { this.predictions = await this.fetchApi('/api/predict') || { trends: {} }; },
+
+        async fetchInsight() {
+            this.insight.loading = true;
+            const data = await this.fetchApi(`/api/insight?tone=${this.settings.insightTone}`);
+            if (data && data.insight) {
+                this.insight.text = data.insight;
+                this.insight.timestamp = data.timestamp;
+            } else {
+                this.insight.text = data?.message || data?.error || 'Could not generate insight.';
+                this.insight.timestamp = null;
+            }
+            this.insight.loading = false;
+        },
+
+
+        async fetchLogStructure() {
+            this.logManager.loading = true;
+            const data = await this.fetchApi('/api/logs/structure');
+            this.logManager.structure = data || {};
+            const years = Object.keys(this.logManager.structure);
+            if (years.length > 0) {
+                const latestYear = years[0];
+                this.logManager.selectedYear = latestYear;
+                const months = Object.keys(this.logManager.structure[latestYear]);
+                if (months.length > 0) {
+                    this.logManager.selectedMonth = months[0];
+                    await this.fetchLogFiles();
+                } else {
+                    this.logManager.files = [];
+                    this.logManager.loading = false;
+                }
+            } else {
+                this.logManager.files = [];
+                this.logManager.loading = false;
+            }
+        },
+        async fetchLogFiles() {
+            if (!this.logManager.selectedYear || !this.logManager.selectedMonth) {
+                this.logManager.files = [];
+                this.logManager.loading = false;
+                return;
+            };
+            this.logManager.loading = true;
+            this.logManager.selectedFiles = [];
+            const year = this.logManager.selectedYear;
+            const month = this.logManager.selectedMonth;
+            const data = await this.fetchApi(`/api/logs/list?year=${year}&month=${month}`);
+            this.logManager.files = (data && !data.error) ? data : [];
+            this.logManager.loading = false;
+        },
+        async fetchStorageStatus() { this.logManager.storage = await this.fetchApi('/api/storage_status') || {}; },
+        async viewLogFile(filePath) {
+            this.logManager.viewingFile = { path: filePath, headers: ['Loading...'], rows: [] };
+            const data = await this.fetchApi(`/api/logs/view?file=${encodeURIComponent(filePath)}`);
+            if (data && data.headers) {
+                this.logManager.viewingFile.headers = data.headers;
+                this.logManager.viewingFile.rows = data.rows.map(row =>
+                    data.headers.map(header => row[header] ?? 'N/A')
+                );
+            } else {
+                this.logManager.viewingFile.headers = ['Error'];
+                this.logManager.viewingFile.rows = [[data?.error || 'Could not load file preview.']];
+            }
+        },
+        async deleteLogFiles() {
+            const res = await this.fetchApi('/api/logs/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: this.logManager.selectedFiles })
+            });
+            const message = res?.message || 'Error deleting files.';
+            const type = (res?.status === 'success') ? 'success' : (res?.status === 'partial' ? 'warning' : 'error');
+            this.showNotification(message, type);
+
+            this.logManager.selectedFiles = [];
+            this.logManager.confirmDelete = false;
+            await this.fetchLogFiles();
+            this.fetchStorageStatus();
+        },
+        async downloadLogs(files) {
+            if (!files || files.length === 0) return this.showNotification('No files selected for download.', 'error');
+            try {
+                this.showNotification('Preparing download...');
+                const response = await fetch('/api/logs/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: files })
+                });
+
+                if (!response.ok) {
+                    try {
+                        const errData = await response.json();
+                        throw new Error(errData.error || `Download failed (${response.status})`);
+                    } catch {
+                        throw new Error(`Download failed: ${response.statusText} (${response.status})`);
+                    }
+                }
+
+                const blob = await response.blob();
+                let fileName = 'atmos_eye_logs.zip';
+                const contentDisposition = response.headers.get('Content-Disposition');
+                if (contentDisposition) {
+                    const fileNameMatch = contentDisposition.match(/filename="?(.+)"?/);
+                    if (fileNameMatch && fileNameMatch[1]) fileName = fileNameMatch[1];
+                }
+
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                const url = window.URL.createObjectURL(blob);
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                this.showNotification('Download started!');
+                this.logManager.selectedFiles = [];
+            } catch (error) {
+                console.error("Download Error:", error);
+                this.showNotification(error.message || 'Error preparing download.', 'error');
+            }
+        },
+        async autoCleanLogs() {
+            this.showNotification('Starting auto-cleanup task...');
+            const res = await this.fetchApi('/api/logs/auto_clean', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ retention: this.settings.logRetentionPeriod })
+            });
+            this.showNotification(res?.message || 'Cleanup failed.', res?.error ? 'error' : 'success');
+            await this.fetchLogStructure();
+            this.fetchStorageStatus();
+        },
+
+
+        async fetchWifiStatus() {
+             const data = await this.fetchApi('/api/wifi/status');
+             if(data && !data.error) {
+                 if(data.wlan0) this.wifi.status_wlan0 = data.wlan0;
+                 if(data.wlan1) {
+                     this.wifi.status_wlan1 = data.wlan1;
+                     if(data.wlan1.mode === 'ap' && !this.wifi.apSettings.ssid) {
+                         this.wifi.apSettings.ssid = data.wlan1.ssid || '';
+                         this.wifi.apSettings.password = '';
+                     }
+                 }
+             } else {
+                 console.error("Failed to fetch WiFi status:", data?.message);
+             }
+        },
+        async setWifiMode(mode) {
+            if (this.wifi.status_wlan1.mode === mode) return;
+            this.wifi.switchingToMode = mode.toUpperCase();
+            this.wifi.switchingMode = true;
+            const res = await this.fetchApi('/api/wifi/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode })
+            });
+            this.showNotification(res?.message || 'Mode switch failed.', res?.error ? 'error' : 'success');
+            await this.fetchWifiStatus();
+            this.wifi.switchingMode = false;
+            this.wifi.switchingToMode = null;
+        },
+        async configureAP() {
+            if (!this.wifi.apSettings.ssid) {
+                return this.showNotification('AP SSID cannot be empty.', 'error');
+            }
+            if (this.wifi.apSettings.password && (this.wifi.apSettings.password.length < 8 || this.wifi.apSettings.password.length > 63) ) {
+                return this.showNotification('AP Password must be between 8 and 63 characters (or empty for open).', 'error');
+            }
+            this.showNotification('Applying new AP settings...');
+            const res = await this.fetchApi('/api/wifi/configure_ap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ssid: this.wifi.apSettings.ssid,
+                    password: this.wifi.apSettings.password || null
+                })
+            });
+            this.showNotification(res?.message || 'Failed to apply settings.', res?.error ? 'error' : 'success');
+            this.wifi.apSettings.password = '';
+            await this.fetchWifiStatus();
+        },
+        async scanWifiNetworks() {
+            this.wifi.loading = true;
+            this.wifi.networks = [];
+            const data = await this.fetchApi('/api/wifi/list');
+            if (data && data.error) {
+                this.showNotification(data.error || data.message || 'Scan failed.', 'error');
+            } else {
+                this.wifi.networks = data || [];
+                if (this.wifi.networks.length === 0) {
+                     this.showNotification('No networks found. Ensure wlan1 is up and try again.', 'warning');
+                }
+            }
+            this.wifi.loading = false;
+        },
+        async connectToWifi() {
+            if (!this.wifi.connectingTo) return;
+            this.showNotification(`Connecting to ${this.wifi.connectingTo}...`);
+            const res = await this.fetchApi('/api/wifi/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: this.wifi.connectingTo, password: this.wifi.password })
+            });
+            this.showNotification(res?.message || 'Connection failed.', res?.error ? 'error' : 'success');
+            this.wifi.connectingTo = null;
+            this.wifi.password = '';
+            await this.fetchWifiStatus();
+            if (!res?.error) {
+            }
+        },
+        async connectToNewWifi() {
+            if (!this.wifi.newNetwork.ssid) { return this.showNotification('Please enter a network name (SSID).', 'error'); }
+            this.showNotification(`Connecting to ${this.wifi.newNetwork.ssid}...`);
+            const res = await this.fetchApi('/api/wifi/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: this.wifi.newNetwork.ssid, password: this.wifi.newNetwork.password })
+            });
+            this.showNotification(res?.message || 'Connection failed.', res?.error ? 'error' : 'success');
+            if (!res?.error) {
+                this.wifi.newNetwork = { ssid: '', password: '' };
+                this.wifi.activeTab = 'networks';
+                await this.fetchWifiStatus();
+            }
+        },
+        async disconnectWifi() {
+            this.showNotification('Disconnecting...');
+            const res = await this.fetchApi('/api/wifi/disconnect', { method: 'POST' });
+            this.showNotification(res?.message || 'Disconnect failed.', res?.error ? 'error' : 'success');
+            await this.fetchWifiStatus();
+        },
+        async forgetNetwork(ssid) {
+            this.showNotification(`Forgetting ${ssid}...`);
+            const res = await this.fetchApi('/api/wifi/forget', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: ssid })
+            });
+            this.showNotification(res?.message || 'Failed to forget network.', res?.error ? 'error' : 'success');
+            await this.fetchWifiStatus();
+        },
+
+        async fetchTelegramSettings() {
+            const data = await this.fetchApi('/api/telegram/settings');
+            if (data && !data.error) {
+                this.telegram.token = data.bot_token || '';
+                this.telegram.chatId = data.chat_id || '';
+            }
+        },
+        async saveTelegramSettings() {
+            this.showNotification('Saving Telegram settings...');
+            const res = await this.fetchApi('/api/telegram/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    bot_token: this.telegram.token,
+                    chat_id: this.telegram.chatId
+                })
+            });
+            this.showNotification(res?.message || 'Failed to save settings.', res?.error ? 'error' : 'success');
+        },
+        async testTelegramMessage() {
+            this.showNotification('Sending test Telegram message...');
+            const res = await this.fetchApi('/api/telegram/test', { method: 'POST' });
+             if (res?.error) {
+                 this.showNotification(res.message || 'Failed to send.', 'error');
+             } else {
+                 this.showNotification(res?.message || 'Test message queued.', 'success');
+             }
+        },
+        async fetchTelegramHistory() {
+            this.telegram.history = [];
+            const data = await this.fetchApi('/api/telegram/history');
+            if (data && !data.error) {
+                this.telegram.history = Array.isArray(data) ? data : [];
+            } else {
+                this.showNotification('Could not load Telegram history.', 'error');
+                this.telegram.history = [];
+            }
+        },
+
+        formatBytes(bytes, d=2) { if(!bytes || bytes === 0) return '0 Bytes'; const k=1024; const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']; const i = Math.floor(Math.log(bytes) / Math.log(k)); return parseFloat((bytes / Math.pow(k, i)).toFixed(d)) + ' ' + sizes[i]; },
+        getStatus(id, val) {
+            if (val === null || typeof val === 'undefined') return 'N/A';
+            const thresholds = {
+                iaq: [{t: 50, s: 'Good'}, {t: 100, s: 'Moderate'}, {t: 150, s: 'Unhealthy (SG)'}, {t: 200, s: 'Unhealthy'}, {t: 300, s: 'Very Unhealthy'}, {t: 500, s: 'Hazardous'}],
+                aqi: [{t: 50, s: 'Good'}, {t: 100, s: 'Moderate'}, {t: 150, s: 'Unhealthy (SG)'}, {t: 200, s: 'Unhealthy'}, {t: 300, s: 'Very Unhealthy'}, {t: 500, s: 'Hazardous'}],
+                temperature: [{t: 18, s: 'Cold'}, {t: 26, s: 'Comfortable'}, {t: 32, s: 'Warm'}, {t: 999, s: 'Hot'}],
+                humidity: [{t: 30, s: 'Dry'}, {t: 60, s: 'Ideal'}, {t: 70, s: 'Humid'}, {t: 999, s: 'Very Humid'}],
+                co2_equivalent: [{t: 800, s: 'Good'}, {t: 1200, s: 'Moderate'}, {t: 2000, s: 'High'}, {t: 5000, s: 'Very High'}],
+                voc_index: [{t: 100, s: 'Good'}, {t: 200, s: 'Moderate'}, {t: 300, s: 'High'}, {t: 500, s: 'Very High'}],
+            };
+            if (!thresholds[id]) return '';
+             if (val === 0 && thresholds[id][0].t >= 0) return thresholds[id][0].s;
+            for (let i = 0; i < thresholds[id].length; i++) {
+                 if (val <= thresholds[id][i].t) return thresholds[id][i].s;
+            }
+            return thresholds[id][thresholds[id].length - 1].s;
+        },
+        getStatusTextColor(id, val) {
+            const status = this.getStatus(id, val);
+            const colors = {
+                'Good': 'text-green-500',
+                'Ideal': 'text-green-500',
+                'Comfortable': 'text-green-500',
+                'Moderate': 'text-yellow-500',
+                'Dry': 'text-blue-400',
+                'Unhealthy (SG)': 'text-orange-500',
+                'Warm': 'text-orange-500',
+                'Humid': 'text-orange-500',
+                'High': 'text-orange-500',
+                'Unhealthy': 'text-red-500',
+                'Cold': 'text-blue-500',
+                'Very Unhealthy': 'text-purple-500',
+                'Very High': 'text-purple-500',
+                'Hazardous': 'text-red-700',
+                'Hot': 'text-red-600',
+                'Very Humid': 'text-indigo-500'
+            };
+            return colors[status] || 'text-gray-400';
+        },
+        formatValue(id, p) {
+            const val = this.live[id]; if (val === null || typeof val === 'undefined') return '--';
+            const unit = this.getUnit(id);
+            try {
+                 if (id === 'temperature' && this.settings.useFahrenheit) {
+                     return `${(val * 9/5 + 32).toFixed(p)}${unit ? ' ' + unit : ''}`;
+                 }
+                 return `${val.toFixed(p)}${unit ? ' ' + unit : ''}`;
+             } catch (e) {
+                 console.error(`Error formatting value for ${id}:`, val, e);
+                 return '--';
+             }
+        },
+        getUnit(id) {
+            const units = {
+                temperature: this.settings.useFahrenheit ? '°F' : '°C',
+                humidity: '%',
+                pressure: 'hPa',
+                co2_equivalent: 'ppm',
+                voc_index: ''
+            };
+            return units[id] || '';
+        },
+        getSignalIcon(s) {
+            if (s === null || typeof s === 'undefined' || s <= 0) return `<svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M18 15.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM12 15.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM11 11.5a1 1 0 00-1-1h-1a1 1 0 100 2h1a1 1 0 001-1zM6 13.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5 9.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1z"/></svg>`;
+            if(s>85)return`<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M18 11.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-5zM12 7.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v9a1 1 0 001 1h1a1 1 0 001-1v-9zM6 3.5a1 1 0 00-1-1H4a1 1 0 00-1 1v13a1 1 0 001 1h1a1 1 0 001-1V3.5z"/></svg>`;
+            if(s>65)return`<svg class="w-5 h-5 text-lime-500" fill="currentColor" viewBox="0 0 20 20"><path d="M18 11.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-5zM12 7.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v9a1 1 0 001 1h1a1 1 0 001-1v-9zM6 13.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5 3.5a1 1 0 00-1-1H3a1 1 0 00-1 1v4a1 1 0 001 1h1a1 1 0 001-1V3.5z"/></svg>`;
+            if(s>40)return`<svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M18 11.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-5zM12 15.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM11 7.5a1 1 0 00-1-1h-1a1 1 0 00-1 1v1a1 1 0 102 0v-1zM6 13.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5 9.5a1 1 0 01-1-1v-4a1 1 0 112 0v4a1 1 0 01-1 1z"/></svg>`;
+            return`<svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20"><path d="M18 15.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM12 15.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM11 11.5a1 1 0 00-1-1h-1a1 1 0 100 2h1a1 1 0 001-1zM6 13.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5 9.5a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1z"/></svg>`;
+        },
+
+        async openModal(m) {
+            this.activeModal = m;
+            if (m === 'log_management') { this.fetchLogStructure(); this.fetchStorageStatus(); }
+            if (m === 'wifi_management') { this.fetchWifiStatus(); }
+            if (m === 'notifications') { this.fetchTelegramSettings(); this.fetchTelegramHistory(); this.telegram.activeTab = 'settings'; }
+        },
+        closeModal() { this.activeModal = null; },
+
+        async testBuzzer(event) {
+            const btn = event.currentTarget;
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            const res = await this.fetchApi('/api/buzzer/test', { method: 'POST' });
+            this.showNotification(res?.message || 'Buzzer test signal sent.', res?.error ? 'error' : 'success');
+            setTimeout(() => { btn.disabled = false; btn.textContent = 'Run Test'; }, 1500);
+        },
+        async testAlert(event) {
+            const btn = event.currentTarget;
+            const wasActive = this.alert.active;
+            btn.disabled = true;
+            btn.textContent = 'Toggling...';
+            const res = await this.fetchApi('/api/alert/test', { method: 'POST' });
+            this.showNotification(res?.message || 'Alert test toggled.', res?.error ? 'error' : 'success');
+             if (!res?.error) {
+                 setTimeout(async () => {
+                     await this.liveUpdate();
+                     btn.textContent = this.alert.active ? 'Stop Test' : 'Run Test';
+                     btn.disabled = false;
+                 }, 500);
+             } else {
+                 btn.textContent = wasActive ? 'Stop Test' : 'Run Test';
+                 btn.disabled = false;
+             }
+        },
+
+        showNotification(message, type = 'success') {
+            this.notification.message = String(message);
+            this.notification.type = type;
+            this.notification.show = true;
+            if (this.notification.timeout) clearTimeout(this.notification.timeout);
+            this.notification.timeout = setTimeout(() => { this.notification.show = false; }, 4000);
+        },
+
+        async fetchApi(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    this.isOnline = false;
+                    let errorMsg = response.statusText || `API Error (${response.status})`;
+                    try {
+                        const errData = await response.json();
+                        errorMsg = errData.message || errData.error || errorMsg;
+                    } catch (e) {
+                         console.debug("Response was not JSON:", await response.text().catch(()=>""));
+                    }
+                    this.showNotification(errorMsg, 'error');
+                    return { error: true, status: response.status, message: errorMsg };
+                }
+                this.isOnline = true;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                     const data = await response.json();
+                     return data;
+                } else {
+                     console.debug("Received non-JSON response for:", url);
+                     return { success: true, status: response.status, text: await response.text().catch(()=>"") };
+                }
+            } catch (err) {
+                console.error("Fetch API Network Error:", err);
+                this.isOnline = false;
+                const errorMsg = 'Network error. Check connection or server status.';
+                this.showNotification(errorMsg, 'error');
+                return { error: true, status: 'NetworkError', message: errorMsg };
+            }
+        }
+    }));
+});
+</script>
+</body>
+</html>
