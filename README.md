@@ -1,207 +1,193 @@
-AtmosEye: Smart ML-Powered Environmental Monitoring System
+# AtmosEye: Smart ML-Powered Environmental Monitoring System
 
-AtmosEye is a cost-effective, portable Internet of Things (IoT) solution for comprehensive indoor air quality (IAQ) and environmental monitoring.
-Built around the Raspberry Pi Zero 2 W, the system leverages advanced sensors and Machine Learning (ML) to provide real-time, actionable insights.
-
-The primary goal of the project is to deliver an intelligent monitoring solution that bridges the gap between expensive professional systems and less accurate consumer devices.
-
-
----
-
-Features and Capabilities
-
-1. Comprehensive Sensing and Compensation
-
-AtmosEye uses a dual-sensor configuration:
-
-Bosch BME688 for temperature, humidity, pressure, and gas measurements.
-
-PMSA003-C for particulate matter detection (PM1.0, PM2.5, PM10).
-
-
-Environmental Metrics
-
-Temperature
-
-Humidity
-
-Pressure
-
-
-Air Quality Metrics
-
-Indoor Air Quality (IAQ) Index
-
-Volatile Organic Compound (VOC) Index
-
-CO₂ Equivalent (ppm)
-
-Particulate Matter (PM1.0, PM2.5, PM10 in µg/m³)
-
-
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-Backend-green.svg)](https://flask.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Raspberry Pi](https://img.shields.io/badge/Hardware-Raspberry%20Pi%20Zero%202%20W-red.svg)](https://www.raspberrypi.com/)
+[![Machine Learning](https://img.shields.io/badge/ML-Scikit--learn-orange.svg)](https://scikit-learn.org/)
 
 ---
 
-2. Machine Learning Intelligence
+## Table of Contents
+- [Overview](#overview)
+- [Features and Capabilities](#features-and-capabilities)
+  - [Comprehensive Sensing and Compensation](#1-comprehensive-sensing-and-compensation)
+  - [Machine Learning Intelligence](#2-machine-learning-intelligence)
+  - [User Interfaces and Alerts](#3-user-interfaces-and-alerts)
+  - [System Management](#4-system-management)
+- [Hardware and Software Architecture](#hardware-and-software-architecture)
+- [Software Stack](#software-stack)
+- [Installation and Setup](#installation-and-setup)
+  - [Install Dependencies](#install-dependencies)
+  - [Hardware-Dependent Libraries](#hardware-dependent-libraries)
+  - [Configuration](#configuration)
+  - [Running the System](#running-the-system)
+  - [Accessing the Dashboard](#accessing-the-dashboard)
+- [Contribution and Future Development](#contribution-and-future-development)
+- [License](#license)
+- [Author](#author)
+
+---
+
+## Overview
+
+**AtmosEye** is a cost-effective, portable IoT solution for comprehensive Indoor Air Quality (IAQ) and environmental monitoring.  
+Built around the **Raspberry Pi Zero 2 W**, it leverages advanced sensors and Machine Learning (ML) to deliver real-time, actionable insights.
+
+**Goal:** To bridge the gap between expensive professional systems and less accurate consumer-grade devices.
+
+---
+
+## Features and Capabilities
+
+### 1. Comprehensive Sensing and Compensation
+
+**Dual-Sensor Configuration:**
+- **Bosch BME688:** Temperature, humidity, pressure, and gas measurements  
+- **PMSA003-C:** Particulate matter detection (PM1.0, PM2.5, PM10)
+
+**Environmental Metrics**
+- Temperature  
+- Humidity  
+- Pressure  
+
+**Air Quality Metrics**
+- Indoor Air Quality (IAQ) Index  
+- Volatile Organic Compound (VOC) Index  
+- CO₂ Equivalent (ppm)  
+- Particulate Matter (PM1.0, PM2.5, PM10 in µg/m³)
+
+---
+
+### 2. Machine Learning Intelligence
 
 AtmosEye uses ML models developed with Scikit-learn to analyze and predict environmental patterns.
 
-AtmosVision (Predictive Trend Analysis):
-AI-based forecasting of environmental trends. Implemented in prediction.py.
+- **AtmosVision (Predictive Trend Analysis):**  
+  AI-based forecasting of environmental trends.  
+  Implemented in `prediction.py`.
 
-AtmosInsights (Intelligent Summaries):
-Generates human-readable summaries of air quality trends. Implemented in atmosinsight.py.
-
-
-
----
-
-3. User Interfaces and Alerts
-
-Designed for both local and remote access.
-
-Progressive Web App (PWA):
-A lightweight, offline-first dashboard (dashboard.html) served by a Flask backend (app.py) for real-time visualization and device control.
-
-Two-Way Telegram Bot:
-(telegram_bot.py) Sends air quality alerts and allows users to request live data.
-
-Audible Alerts:
-A passive buzzer provides audible notifications for critical IAQ warnings.
-
-
+- **AtmosInsights (Intelligent Summaries):**  
+  Generates human-readable summaries of air quality trends.  
+  Implemented in `atmosinsight.py`.
 
 ---
 
-4. System Management
+### 3. User Interfaces and Alerts
 
-Wi-Fi Management:
-wifimanager.py enables network management directly from the device.
+- **Progressive Web App (PWA):**  
+  Offline-first dashboard (`dashboard.html`) served by Flask (`app.py`) for real-time visualization and device control.
 
-Data Logging and Maintenance:
-Sensor data is stored in compressed CSV files, organized by date.
-Includes an automatic log maintenance system for long-term operation.
+- **Telegram Bot:**  
+  (`telegram_bot.py`) Sends air quality alerts and allows live data requests.
 
-
+- **Audible Alerts:**  
+  Passive buzzer provides sound notifications for critical IAQ warnings.
 
 ---
 
-Hardware and Software Architecture
+### 4. System Management
+
+- **Wi-Fi Management:**  
+  `wifimanager.py` handles local network management directly from the device.
+
+- **Data Logging and Maintenance:**  
+  Data is stored in compressed CSV files organized by date.  
+  Includes an automatic log maintenance system for long-term operation.
+
+---
+
+## Hardware and Software Architecture
 
 The system follows a modular, microservice-like architecture, running entirely on the Raspberry Pi Zero 2 W.
 
-Hardware Requirements
+### Hardware Requirements
 
-Component	Purpose
-
-Raspberry Pi Zero 2 W	Main processing unit running backend and ML models
-Bosch BME688 Sensor	Gas and environmental sensor for IAQ and VOC readings
-PMSA003-C Sensor	Laser-based particulate matter sensor
-Passive Buzzer	Audible alerts for smoke and critical air quality warnings
-
-
+| Component | Purpose |
+|------------|----------|
+| Raspberry Pi Zero 2 W | Main processing unit running backend and ML models |
+| Bosch BME688 Sensor | Gas and environmental sensor for IAQ and VOC readings |
+| PMSA003-C Sensor | Laser-based particulate matter sensor |
+| Passive Buzzer | Audible alerts for smoke and critical air quality warnings |
 
 ---
 
-Software Stack
+## Software Stack
 
-Module	Technology	Function
-
-Data Acquisition	iaqcalc.py (Python)	Sensor interfacing, smoothing, and metric computation
-Backend / API	Flask (app.py)	Serves dashboard and provides REST API endpoints
-ML / Analysis	Scikit-learn, Pandas (prediction.py)	Predictive trend analysis using ML models
-Frontend	Alpine.js, TailwindCSS (dashboard.html)	Responsive web dashboard for data visualization
-Remote Service	telegram_bot.py	Two-way communication via Telegram for alerts and commands
-
-
+| Module | Technology | Function |
+|--------|-------------|-----------|
+| Data Acquisition | `iaqcalc.py` | Sensor interfacing, smoothing, and metric computation |
+| Backend / API | Flask (`app.py`) | Serves dashboard and provides REST API endpoints |
+| ML / Analysis | Scikit-learn, Pandas (`prediction.py`) | Predictive trend analysis using ML models |
+| Frontend | Alpine.js, TailwindCSS (`dashboard.html`) | Responsive dashboard for data visualization |
+| Remote Service | `telegram_bot.py` | Two-way Telegram communication for alerts and commands |
 
 ---
 
-Installation and Setup
+## Installation and Setup
 
-1. Prerequisites (on Raspberry Pi OS)
+### Install Dependencies
 
-Enable required interfaces:
+**Core Python Dependencies:**
 
-sudo raspi-config
-# Enable I2C, Serial, and GPIO
-
-Install dependencies:
-
-# Core Python dependencies
+```bash
 pip install Flask pandas numpy scikit-learn psutil python-telegram-bot
+```
+### Hardware-Dependent Libraries
 
-# Hardware-dependent libraries
+Install hardware-specific libraries using pip:
+
+```bash
 pip install adafruit-circuitpython-bme680 pms5003 RPi.GPIO
-
-
----
-
-2. Configuration
-
-Clone the repository:
-
+```
+### Configuration
+Clone the Repository
+```bash
 git clone https://github.com/SamarjeetSunil2005/AtmosEye.git
 cd AtmosEye
-
-Set Telegram credentials:
-
+```
+Set Telegram Credentials
+```bash
 cp telegram_settings.example.py telegram_settings.py
 nano telegram_settings.py
 # Enter BOT_TOKEN and CHAT_ID
-
-Set up HTTPS certificates (required for PWA functionality):
-
+```
+Set up HTTPS Certificates (required for PWA)
+```bash
 # Generate self-signed certificates
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+```
+### Running the System
 
-
----
-
-3. Running the System
-
-Start the Flask backend (sudo required for GPIO and Wi-Fi management):
-
+Start the Flask backend (sudo required for GPIO and Wi-Fi):
+```bash
 sudo python3 app.py
+```
+### Accessing the Dashboard
 
-
----
-
-4. Accessing the Dashboard
-
-Once the server starts, open a browser on any device on the same network and navigate to:
-
+Once the server is running, open a browser on any device on the same network and navigate to:
+```bash
 https://[Raspberry_Pi_IP_Address]:5000
-
-
----
-
-Contribution and Future Development
+```
+## Contribution and Future Development
 
 Contributions, issues, and feature requests are welcome.
 
-Future Development Scope
+## Future Development Scope
 
-Cloud Connectivity: Enable cloud-based monitoring and multi-device data aggregation.
+- Cloud-based monitoring and multi-device data aggregation
 
-Native App Integration: Develop Android/iOS apps for notifications and monitoring.
+- Native Android/iOS app integration for alerts and monitoring
 
-Specialized Sensors: Add support for additional gas sensors (O₃, NO₂, etc.).
+- Additional gas sensors (O₃, NO₂, etc.)
 
-Weather Correlation: Integrate external weather data for comprehensive analysis.
+- External weather data integration for advanced analysis
 
+## License
+This project is licensed under the MIT License.
+See the LICENSE
 
+## Author
 
----
-
-License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-
----
-
-Author
-
-Developed by Samarjeet Sunil
-GitHub: https://github.com/SamarjeetSunil2005
+**Developed by:**  
+[![GitHub – Samarjeet Sunil](https://img.shields.io/badge/GitHub-Samarjeet%20Sunil-black?logo=github)](https://github.com/SamarjeetSunil2005)
